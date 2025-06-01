@@ -1,8 +1,6 @@
 import { Client, EmbedBuilder, GatewayIntentBits } from 'discord.js';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import roblox from './roblox.js';
-import dotenv from 'dotenv';
-dotenv.config();
 const log = (data, error) => {
     const timestamp = new Date().toISOString();
     if (error) {

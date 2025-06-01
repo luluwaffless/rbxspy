@@ -11,6 +11,7 @@ const log = (data, error) => {
         appendFileSync(`logs.log`, `[${timestamp}] ${data}\n`);
     };
 };
+const { version } = JSON.parse(readFileSync('package.json', 'utf-8'));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const config = JSON.parse(readFileSync('config.json', 'utf-8'));
 const data = JSON.parse(readFileSync('data.json', 'utf-8'));
@@ -87,7 +88,8 @@ const checkChance = async () => {
     return;
 };
 
-const checkGames = async (recurrent) => {
+let nextCheck = 0;
+const checkGames = async () => {
     try {
         const universes = await roblox.getGames(universeIds);
         const thumbnails = await roblox.getGameThumbnails(universeIds);
@@ -337,7 +339,8 @@ const checkGames = async (recurrent) => {
         return;
     };
     checkChance();
-    if (recurrent) setTimeout(() => checkGames(true), 60000);
+    nextCheck = new Date().getTime() + 60000;
+    setTimeout(() => checkGames(true), 60000);
     return;
 };
 
@@ -354,7 +357,7 @@ client.once('ready', async () => {
             process.exit(1);
         });
     };
-    await checkGames(true);
+    await checkGames();
 });
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
@@ -366,7 +369,7 @@ client.on('interactionCreate', async (interaction) => {
             .addFields(...universeIds.map(id => ({
                 name: config.games[id].displayName,
                 value: `Last updated: <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\nUpdates today: ${data[id].updateCount.today}\nUpdates yesterday: ${data[id].updateCount.yesterday}`
-            })), { name: "Chance of updating", value: chance.text })
+            })), { name: "Chance of updating", value: chance.text }, { name: "Version", value: version }, { name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` })
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
     });
 });

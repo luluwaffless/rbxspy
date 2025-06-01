@@ -1,0 +1,7 @@
+package-lock.json
+node_modules/
+config.json
+errors.log
+data.json
+logs.log
+.env

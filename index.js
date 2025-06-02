@@ -75,7 +75,7 @@ const checkChance = async () => {
                             : estimate > 0 ? 1
                                 : 0;
         if (data.chance !== chances[estimate]) {
-            log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
+            if (data.chance) log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
             data.chance = chances[estimate];
             saveData();
             const chanceChannel = await getChannel(config.discord.chanceChannelId);

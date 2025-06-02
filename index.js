@@ -41,9 +41,18 @@ const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, tex
 let chance = chances[0];
 const checkChance = async () => {
     const now = new Date();
-    const hour = now.getUTCHours();
-    const minute = now.getUTCMinutes();
-    if (hour !== 0 || minute !== 0) {
+    const time = now.getTime();
+    const hour = now.getHours();
+    if (!data.lastUpdate || (time - data.lastUpdate) >= 86400000) {
+        data.lastUpdate = time;
+        Object.keys(data).forEach((id) => {
+            if (id === "lastUpdate") return;
+            data[id].updateCount.yesterday = data[id].updateCount.today;
+            data[id].updateCount.today = 0;
+        });
+        saveData();
+        log("✅ Update count reset.");
+    } else {
         let estimate = 0;
         if (hour > 23 || hour < 11) estimate += 10;
         Object.keys(data).forEach((id) => {
@@ -78,12 +87,6 @@ const checkChance = async () => {
                 ]
             });
         };
-    } else if (now.getUTCSeconds() > 30) {
-        Object.keys(data).forEach((id) => {
-            data[id].updateCount.yesterday = data[id].updateCount.today;
-            data[id].updateCount.today = 0;
-        });
-        saveData();
     };
     return;
 };

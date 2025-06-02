@@ -56,6 +56,7 @@ const checkChance = async () => {
         let estimate = 0;
         if (hour > 23 || hour < 11) estimate += 10;
         Object.keys(data).forEach((id) => {
+            if (id === "lastUpdate") return;
             const { yesterday, today } = data[id].updateCount;
             const total = (yesterday / 2) + today;
             if (total >= 5) {

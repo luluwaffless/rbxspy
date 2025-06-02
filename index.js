@@ -52,43 +52,43 @@ const checkChance = async () => {
         });
         saveData();
         log("✅ Update count reset.");
-    } else {
-        let estimate = 0;
-        if (hour > 23 || hour < 11) estimate += 10;
-        Object.keys(data).forEach((id) => {
-            if (baseData.includes(id)) return;
-            const { yesterday, today } = data[id].updateCount;
-            const total = (yesterday / 2) + today;
-            if (total >= 5) {
-                estimate += 20;
-            } else if (total === 4) {
-                estimate += 15;
-            } else if (total === 3) {
-                estimate += 10;
-            };
-        });
-        estimate = estimate > 100 ? 6
-            : estimate >= 80 ? 5
-                : estimate >= 60 ? 4
-                    : estimate >= 40 ? 3
-                        : estimate >= 20 ? 2
-                            : estimate > 0 ? 1
-                                : 0;
-        if (data.chance !== chances[estimate]) {
-            if (data.chance) log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
-            data.chance = chances[estimate];
-            saveData();
-            const chanceChannel = await getChannel(config.discord.chanceChannelId);
-            await chanceChannel.send({
-                content: `-# ||<@&${config.discord.chanceRoleId}>||`,
-                embeds: [new EmbedBuilder()
-                    .setTitle("Chance of updating changed!")
-                    .setDescription(data.chance.text)
-                    .setColor(data.chance.color)
-                    .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })
-                ]
-            });
+    };
+    let estimate = 0;
+    if (hour > 23 || hour < 11) estimate += 10;
+    Object.keys(data).forEach((id) => {
+        if (baseData.includes(id)) return;
+        const { yesterday, today } = data[id].updateCount;
+        const total = (yesterday / 2) + today;
+        if (total >= 5) {
+            estimate += 20;
+        } else if (total === 4) {
+            estimate += 15;
+        } else if (total === 3) {
+            estimate += 10;
         };
+    });
+    estimate = estimate > 100 ? 6
+        : estimate >= 80 ? 5
+            : estimate >= 60 ? 4
+                : estimate >= 40 ? 3
+                    : estimate >= 20 ? 2
+                        : estimate > 0 ? 1
+                            : 0;
+    if (!data.chance) data.chance = chances[0];
+    if (data.chance.text !== chances[estimate].text) {
+        log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
+        data.chance = chances[estimate];
+        saveData();
+        const chanceChannel = await getChannel(config.discord.chanceChannelId);
+        await chanceChannel.send({
+            content: `-# ||<@&${config.discord.chanceRoleId}>||`,
+            embeds: [new EmbedBuilder()
+                .setTitle("Chance of updating changed!")
+                .setDescription(data.chance.text)
+                .setColor(data.chance.color)
+                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })
+            ]
+        });
     };
     return;
 };

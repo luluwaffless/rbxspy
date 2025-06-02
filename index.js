@@ -14,6 +14,7 @@ const log = (data, error) => {
 const { version } = JSON.parse(readFileSync('package.json', 'utf-8'));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const config = JSON.parse(readFileSync('config.json', 'utf-8'));
+const baseData = ["lastUpdate", "chance"];
 const data = JSON.parse(readFileSync('data.json', 'utf-8'));
 const saveData = () => writeFileSync('data.json', JSON.stringify(data));
 const universeIds = Object.keys(config.games);
@@ -38,7 +39,6 @@ const setName = async (id, name) => {
 };
 
 const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, text: "Low" }, { color: 0xf1c40f, text: "Average" }, { color: 0x2ecc71, text: "High" }, { color: 0x3498db, text: "Very high" }, { color: 0x9b59b6, text: "Extremely high" }];
-let chance = chances[0];
 const checkChance = async () => {
     const now = new Date();
     const time = now.getTime();
@@ -46,7 +46,7 @@ const checkChance = async () => {
     if (!data.lastUpdate || (time - data.lastUpdate) >= 86400000) {
         data.lastUpdate = time;
         Object.keys(data).forEach((id) => {
-            if (id === "lastUpdate") return;
+            if (baseData.includes(id)) return;
             data[id].updateCount.yesterday = data[id].updateCount.today;
             data[id].updateCount.today = 0;
         });
@@ -56,7 +56,7 @@ const checkChance = async () => {
         let estimate = 0;
         if (hour > 23 || hour < 11) estimate += 10;
         Object.keys(data).forEach((id) => {
-            if (id === "lastUpdate") return;
+            if (baseData.includes(id)) return;
             const { yesterday, today } = data[id].updateCount;
             const total = (yesterday / 2) + today;
             if (total >= 5) {
@@ -74,16 +74,17 @@ const checkChance = async () => {
                         : estimate >= 20 ? 2
                             : estimate > 0 ? 1
                                 : 0;
-        if (chance !== chances[estimate]) {
+        if (data.chance !== chances[estimate]) {
             log(`✅ Chance of updating changed! From ${chance.text} to ${chances[estimate].text}`);
-            chance = chances[estimate];
+            data.chance = chances[estimate];
+            saveData();
             const chanceChannel = await getChannel(config.discord.chanceChannelId);
             await chanceChannel.send({
                 content: `-# ||<@&${config.discord.chanceRoleId}>||`,
                 embeds: [new EmbedBuilder()
                     .setTitle("Chance of updating changed!")
-                    .setDescription(chance.text)
-                    .setColor(chance.color)
+                    .setDescription(data.chance.text)
+                    .setColor(data.chance.color)
                     .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })
                 ]
             });
@@ -370,10 +371,10 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [new EmbedBuilder()
             .setTitle(config.discord.name)
             .setColor(0xe91e63)
-            .addFields(...universeIds.map(id => ({
+            .addFields({ name: "Version", value: version }, { name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` }, { name: "Chance of updating", value: data.chance.text }, ...universeIds.map(id => ({
                 name: config.games[id].displayName,
                 value: `Last updated: <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\nUpdates today: ${data[id].updateCount.today}\nUpdates yesterday: ${data[id].updateCount.yesterday}`
-            })), { name: "Chance of updating", value: chance.text }, { name: "Version", value: version }, { name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` })
+            })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
     });
 });

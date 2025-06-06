@@ -94,7 +94,7 @@ const checkChance = async () => {
 };
 
 let nextCheck = 0;
-const checkGames = async () => {
+const checkAll = async () => {
     try {
         const universes = await roblox.getGames(universeIds);
         const thumbnails = await roblox.getGameThumbnails(universeIds);
@@ -344,8 +344,6 @@ const checkGames = async () => {
         return;
     };
     checkChance();
-    nextCheck = new Date().getTime() + 60000;
-    setTimeout(() => checkGames(true), 60000);
     return;
 };
 
@@ -356,6 +354,12 @@ client.once('ready', async () => {
         const login = await roblox.login(process.env.cookie);
         log(`✅ Logged into Roblox as ${login.displayName} (@${login.name})!`);
     };
+    await checkAll();
+    nextCheck = new Date().getTime() + 60000;
+    setInterval(async () => {
+        await checkAll();
+        nextCheck = new Date().getTime() + 60000;
+    }, 60000);
     for (let evt of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
         process.on(evt, async () => {
             await setName(config.discord.categoryId, "🔴 offline");

@@ -355,11 +355,11 @@ client.once('ready', async () => {
         log(`✅ Logged into Roblox as ${login.displayName} (@${login.name})!`);
     };
     await checkAll();
-    nextCheck = new Date().getTime() + 60000;
+    nextCheck = new Date().getTime() + config.checkInterval;
     setInterval(async () => {
         await checkAll();
-        nextCheck = new Date().getTime() + 60000;
-    }, 60000);
+        nextCheck = new Date().getTime() + config.checkInterval;
+    }, config.checkInterval);
     for (let evt of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
         process.on(evt, async () => {
             await setName(config.discord.categoryId, "🔴 offline");

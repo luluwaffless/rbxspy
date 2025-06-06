@@ -366,7 +366,6 @@ client.once('ready', async () => {
             process.exit(1);
         });
     };
-    await checkGames();
 });
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;

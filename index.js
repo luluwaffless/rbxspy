@@ -39,62 +39,8 @@ const setName = async (id, name) => {
 };
 
 const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, text: "Low" }, { color: 0xf1c40f, text: "Average" }, { color: 0x2ecc71, text: "High" }, { color: 0x3498db, text: "Very high" }, { color: 0x9b59b6, text: "Extremely high" }];
-const checkChance = async () => {
-    const now = new Date();
-    const time = now.getTime();
-    const hour = now.getHours();
-    if (!data.lastUpdate || (time - data.lastUpdate) >= 86400000) {
-        data.lastUpdate = time;
-        Object.keys(data).forEach((id) => {
-            if (baseData.includes(id)) return;
-            data[id].updateCount.yesterday = data[id].updateCount.today;
-            data[id].updateCount.today = 0;
-        });
-        saveData();
-        log("✅ Update count reset.");
-    };
-    let estimate = 0;
-    if (hour > 23 || hour < 11) estimate += 10;
-    Object.keys(data).forEach((id) => {
-        if (baseData.includes(id)) return;
-        const { yesterday, today } = data[id].updateCount;
-        const total = (yesterday / 2) + today;
-        if (total >= 5) {
-            estimate += 20;
-        } else if (total === 4) {
-            estimate += 15;
-        } else if (total === 3) {
-            estimate += 10;
-        };
-    });
-    estimate = estimate > 100 ? 6
-        : estimate >= 80 ? 5
-            : estimate >= 60 ? 4
-                : estimate >= 40 ? 3
-                    : estimate >= 20 ? 2
-                        : estimate > 0 ? 1
-                            : 0;
-    if (!data.chance) data.chance = chances[0];
-    if (data.chance.text !== chances[estimate].text) {
-        log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
-        data.chance = chances[estimate];
-        saveData();
-        const chanceChannel = await getChannel(config.discord.chanceChannelId);
-        await chanceChannel.send({
-            content: `-# ||<@&${config.discord.chanceRoleId}>||`,
-            embeds: [new EmbedBuilder()
-                .setTitle("Chance of updating changed!")
-                .setDescription(data.chance.text)
-                .setColor(data.chance.color)
-                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })
-            ]
-        });
-    };
-    return;
-};
-
 let nextCheck = 0;
-const checkAll = async () => {
+const check = async () => {
     try {
         const universes = await roblox.getGames(universeIds);
         const thumbnails = await roblox.getGameThumbnails(universeIds);
@@ -343,7 +289,56 @@ const checkAll = async () => {
         log('❌ Error checking games', error);
         return;
     };
-    checkChance();
+    const now = new Date();
+    const time = now.getTime();
+    const hour = now.getHours();
+    if (!data.lastUpdate || (time - data.lastUpdate) >= 86400000) {
+        data.lastUpdate = time;
+        Object.keys(data).forEach((id) => {
+            if (baseData.includes(id)) return;
+            data[id].updateCount.yesterday = data[id].updateCount.today;
+            data[id].updateCount.today = 0;
+        });
+        saveData();
+        log("✅ Update count reset.");
+    };
+    let estimate = 0;
+    if (hour > 23 || hour < 11) estimate += 10;
+    Object.keys(data).forEach((id) => {
+        if (baseData.includes(id)) return;
+        const { yesterday, today } = data[id].updateCount;
+        const total = (yesterday / 2) + today;
+        if (total >= 5) {
+            estimate += 20;
+        } else if (total === 4) {
+            estimate += 15;
+        } else if (total === 3) {
+            estimate += 10;
+        };
+    });
+    estimate = estimate > 100 ? 6
+        : estimate >= 80 ? 5
+            : estimate >= 60 ? 4
+                : estimate >= 40 ? 3
+                    : estimate >= 20 ? 2
+                        : estimate > 0 ? 1
+                            : 0;
+    if (!data.chance) data.chance = chances[0];
+    if (data.chance.text !== chances[estimate].text) {
+        log(`✅ Chance of updating changed! From ${data.chance.text} to ${chances[estimate].text}`);
+        data.chance = chances[estimate];
+        saveData();
+        const chanceChannel = await getChannel(config.discord.chanceChannelId);
+        await chanceChannel.send({
+            content: `-# ||<@&${config.discord.chanceRoleId}>||`,
+            embeds: [new EmbedBuilder()
+                .setTitle("Chance of updating changed!")
+                .setDescription(data.chance.text)
+                .setColor(data.chance.color)
+                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })
+            ]
+        });
+    };
     return;
 };
 
@@ -354,10 +349,10 @@ client.once('ready', async () => {
         const login = await roblox.login(process.env.cookie);
         log(`✅ Logged into Roblox as ${login.displayName} (@${login.name})!`);
     };
-    await checkAll();
+    await check();
     nextCheck = new Date().getTime() + config.checkInterval;
     setInterval(async () => {
-        await checkAll();
+        await check();
         nextCheck = new Date().getTime() + config.checkInterval;
     }, config.checkInterval);
     for (let evt of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
@@ -374,12 +369,22 @@ client.on('interactionCreate', async (interaction) => {
         embeds: [new EmbedBuilder()
             .setTitle(config.discord.name)
             .setColor(0xe91e63)
-            .addFields({ name: "Version", value: version }, { name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` }, { name: "Chance of updating", value: data.chance.text }, ...universeIds.map(id => ({
+            .addFields({ name: "Bot information", value: `**Version**: [${version}](https://github.com/luluwaffless/rbxspy)\n**Next Check**: <t:${Math.floor(nextCheck / 1000)}:R>\n**Next Count Reset**: <t:${Math.floor((data.lastUpdate + 86400000) / 1000)}:R>\n**Chance of updating**: ${data.chance.text}` }, ...universeIds.map(id => ({
                 name: config.games[id].displayName,
                 value: `Last updated: <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\nUpdates today: ${data[id].updateCount.today}\nUpdates yesterday: ${data[id].updateCount.yesterday}`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
+    }).catch(error => {
+        log('❌ Error replying to interaction', error);
+        interaction.followUp({ content: '❌ An error occurred while processing your request.', ephemeral: true });
     });
 });
 validateGameData();
 client.login(process.env.token);
+
+/* if the new change fumbles
+{ name: "Version", value: `[${version}](https://github.com/luluwaffless/rbxspy)` }, 
+{ name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` }, 
+{ name: "Next Count Reset", value: `<t:${Math.floor((data.lastUpdate + 86400000) / 1000)}:R>` }, 
+{ name: "Chance of updating", value: data.chance.text }
+*/

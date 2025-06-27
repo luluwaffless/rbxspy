@@ -15,7 +15,7 @@ const { version } = JSON.parse(readFileSync('package.json', 'utf-8'));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const config = JSON.parse(readFileSync('config.json', 'utf-8'))
 const universeIds = Object.keys(config.games);
-const userIds = Object.key(config.users);
+const userIds = Object.keys(config.users);
 const data = JSON.parse(readFileSync('data.json', 'utf-8'));
 const saveData = () => writeFileSync('data.json', JSON.stringify(data));
 const baseData = ["lastUpdate", "chance"];

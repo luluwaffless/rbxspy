@@ -13,18 +13,28 @@ const log = (data, error) => {
 };
 const { version } = JSON.parse(readFileSync('package.json', 'utf-8'));
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-const config = JSON.parse(readFileSync('config.json', 'utf-8'));
-const baseData = ["lastUpdate", "chance"];
+const config = JSON.parse(readFileSync('config.json', 'utf-8'))
+const universeIds = Object.keys(config.games);
+const userIds = Object.key(config.users);
 const data = JSON.parse(readFileSync('data.json', 'utf-8'));
 const saveData = () => writeFileSync('data.json', JSON.stringify(data));
-const universeIds = Object.keys(config.games);
-const createDataFormat = () => ({ lastUpdated: 0, rootPlaceId: 0, name: "", description: "", icon: "", updateCount: { today: 0, yesterday: 0 }, gamePasses: [], products: [], badges: [], places: [], thumbnails: [] });
-const validateGameData = () => universeIds.forEach(id => {
-    if (data[id] && Object.keys(createDataFormat()).every(key => data[id][key] !== undefined)) return;
-    data[id] = createDataFormat();
-    saveData();
-    log(`✅ Game data for universe ${id} initialized.`);
-});
+const baseData = ["lastUpdate", "chance"];
+const createGameFormat = () => ({ lastUpdated: 0, rootPlaceId: 0, name: "", description: "", icon: "", updateCount: { today: 0, yesterday: 0 }, gamePasses: [], products: [], badges: [], places: [], thumbnails: [] });
+const createUserFormat = () => ({ presence: 0, location: "", placeId: 0, rootPlaceId: 0, gameId: "", universeId: 0, lastActivity: 0 });
+const validateData = () => {
+    universeIds.forEach(id => {
+        if (data[id] && Object.keys(createGameFormat()).every(key => data[id][key] !== undefined)) return;
+        data[id] = createGameFormat();
+        saveData();
+        log(`✅ Game data for universe ${id} initialized.`);
+    });
+    userIds.forEach(id => {
+        if (data[id] && Object.keys(createUserFormat()).every(key => data[id][key] !== undefined)) return;
+        data[id] = createUserFormat();
+        saveData();
+        log(`✅ Game data for user ${id} initialized.`);
+    });
+};
 
 const channels = {};
 const getChannel = async (id) => {
@@ -42,249 +52,255 @@ const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, tex
 let nextCheck = 0;
 const check = async () => {
     try {
-        const universes = await roblox.getGames(universeIds);
-        const thumbnails = await roblox.getGameThumbnails(universeIds);
-        const icons = await roblox.getThumbnails(universeIds.map(targetId => roblox.generateBatch(targetId, roblox.thumbnailTypes.GameIcon)));
-        for (const { id, rootPlaceId, updated, description, name } of universes) {
-            // updates
-            const icon = icons.find(icon => icon.targetId === id)?.imageUrl || "";
-            const updatedDate = new Date(updated);
-            if (data[id].rootPlaceId !== rootPlaceId) data[id].rootPlaceId = rootPlaceId;
-            if (data[id].lastUpdated < updatedDate.getTime() - 10000) {
-                log(`✅ Game ${config.games[id].displayName} updated! From ${new Date(data[id].lastUpdated).toISOString()} to ${updatedDate.toISOString()}`);
-                const embed = new EmbedBuilder()
-                    .setColor(0x2ecc71)
-                    .setTitle(`${config.games[id].displayName} updated!`)
-                    .setURL(`https://www.roblox.com/games/${rootPlaceId}`)
-                    .setDescription(`<t:${Math.floor(updatedDate.getTime() / 1000)}:R>`)
-                    .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                data[id].lastUpdated = updatedDate.getTime();
-                if (data[id].name !== name) {
-                    data[id].name = name;
-                    const gameName = name ?? "";
-                    embed.addFields({ name: "New Name", value: gameName.length > 1024 ? `${gameName.slice(0, 1021)}...` : gameName });
-                };
-                if (data[id].description !== description) {
-                    data[id].description = description;
-                    const gameDescription = description ?? "";
-                    embed.addFields({ name: "New Description", value: gameDescription.length > 1024 ? `${gameDescription.slice(0, 1021)}...` : gameDescription });
-                };
-                if (data[id].icon !== icon) {
-                    data[id].icon = icon;
-                    embed.setImage(icon);
-                };
-                data[id].updateCount.today++;
-                saveData();
-                const channel = await getChannel(config.games[id].discord.channelId);
-                await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-            };
-
-            // thumbnails
-            const thumbnailData = thumbnails.find(data => data.universeId === id);
-            if (thumbnailData.thumbnails) {
-                for (const { targetId, imageUrl } of thumbnailData.thumbnails) {
-                    if (!data[id].thumbnails.includes(targetId)) {
-                        log(`✅ Thumbnail for game ${config.games[id].displayName} (${targetId}) created! ID: ${targetId}`);
-                        data[id].thumbnails.push(targetId);
-                        saveData();
-                        const embed = new EmbedBuilder()
-                            .setColor(0xe67e22)
-                            .setTitle(`${config.games[id].displayName} Thumbnail created!`)
-                            .setURL(`https://www.roblox.com/games/${id}`)
-                            .setImage(imageUrl)
-                            .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                        const channel = await getChannel(config.games[id].discord.channelId);
-                        await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-                    };
-                };
-            };
-
-            // gamepasses
-            const gamepasses = await roblox.getGamePasses(id);
-            const gamepassIcons = await roblox.getThumbnails(gamepasses.map(gamepass => roblox.generateBatch(gamepass.id, roblox.thumbnailTypes.GamePass)));
-            for (const gamepass of gamepasses) {
-                const [gamepassId, gamepassName, gamepassPrice, gamepassDescription, gamepassIcon] = [
-                    gamepass.id,
-                    gamepass.displayName,
-                    gamepass.price,
-                    gamepass.description,
-                    gamepassIcons.find(icon => icon.targetId === gamepass.id)?.imageUrl || ""
-                ];
-                const gpIndex = data[id].gamePasses.findIndex(gp => gp.id === gamepassId);
-                if (gpIndex === -1) {
-                    log(`✅ Gamepass ${gamepassName} (${gamepassId}) created for game ${config.games[id].name}!`);
-                    data[id].gamePasses.push({ id: gamepassId, name: gamepassName, price: gamepassPrice, description: gamepassDescription, icon: gamepassIcon });
-                    saveData();
+        if (universeIds.length > 0) { // games
+            const universes = await roblox.getGames(universeIds);
+            const thumbnails = await roblox.getGameThumbnails(universeIds);
+            const icons = await roblox.getThumbnails(universeIds.map(targetId => roblox.generateBatch(targetId, roblox.thumbnailTypes.GameIcon)));
+            for (const { id, rootPlaceId, updated, description, name } of universes) {
+                // updates
+                const icon = icons.find(icon => icon.targetId === id)?.imageUrl || "";
+                const updatedDate = new Date(updated);
+                if (data[id].rootPlaceId !== rootPlaceId) data[id].rootPlaceId = rootPlaceId;
+                if (data[id].lastUpdated < updatedDate.getTime() - 10000) {
+                    log(`✅ Game ${config.games[id].displayName} updated! From ${new Date(data[id].lastUpdated).toISOString()} to ${updatedDate.toISOString()}`);
                     const embed = new EmbedBuilder()
-                        .setColor(0x3498db)
-                        .setTitle(`${config.games[id].displayName} Gamepass created!`)
-                        .setURL(`https://www.roblox.com/game-pass/${gamepassId}`)
-                        .addFields({ name: "Name", value: gamepassName }, { name: "Price", value: gamepassPrice ? `${gamepassPrice} Robux` : "Unavailable" }, { name: "Description", value: gamepassDescription.length > 1024 ? `${gamepassDescription.slice(0, 1021)}...` : gamepassDescription })
+                        .setColor(0x2ecc71)
+                        .setTitle(`${config.games[id].displayName} updated!`)
+                        .setURL(`https://www.roblox.com/games/${rootPlaceId}`)
+                        .setDescription(`<t:${Math.floor(updatedDate.getTime() / 1000)}:D> at <t:${Math.floor(updatedDate.getTime() / 1000)}:T> (<t:${Math.floor(updatedDate.getTime() / 1000)}:R>)`)
                         .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                    if (gamepassIcon) embed.setThumbnail(gamepassIcon);
+                    data[id].lastUpdated = updatedDate.getTime();
+                    if (data[id].name !== name) {
+                        data[id].name = name;
+                        const gameName = name ?? "";
+                        embed.addFields({ name: "New Name", value: gameName.length > 1024 ? `${gameName.slice(0, 1021)}...` : gameName });
+                    };
+                    if (data[id].description !== description) {
+                        data[id].description = description;
+                        const gameDescription = description ?? "";
+                        embed.addFields({ name: "New Description", value: gameDescription.length > 1024 ? `${gameDescription.slice(0, 1021)}...` : gameDescription });
+                    };
+                    if (data[id].icon !== icon && icon.endsWith("noFilter")) {
+                        data[id].icon = icon;
+                        embed.setImage(icon);
+                    };
+                    data[id].updateCount.today++;
+                    saveData();
                     const channel = await getChannel(config.games[id].discord.channelId);
                     await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-                } else {
-                    const existingGamepass = data[id].gamePasses[gpIndex];
-                    if (existingGamepass.name !== gamepassName || existingGamepass.price !== gamepassPrice ||
-                        existingGamepass.description !== gamepassDescription || existingGamepass.icon !== gamepassIcon) {
-                        log(`✅ Gamepass ${gamepassName} (${gamepassId}) updated for game ${config.games[id].name}!`);
+                };
+
+                // thumbnails
+                const thumbnailData = thumbnails.find(data => data.universeId === id);
+                if (thumbnailData.thumbnails) {
+                    for (const { targetId, imageUrl } of thumbnailData.thumbnails) {
+                        if (!data[id].thumbnails.includes(targetId)) {
+                            log(`✅ Thumbnail for game ${config.games[id].displayName} (${targetId}) created! ID: ${targetId}`);
+                            data[id].thumbnails.push(targetId);
+                            saveData();
+                            const embed = new EmbedBuilder()
+                                .setColor(0xe67e22)
+                                .setTitle(`${config.games[id].displayName} Thumbnail created!`)
+                                .setURL(`https://www.roblox.com/games/${id}`)
+                                .setImage(imageUrl)
+                                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                            const channel = await getChannel(config.games[id].discord.channelId);
+                            await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                        };
+                    };
+                };
+
+                // gamepasses
+                const gamepasses = await roblox.getGamePasses(id);
+                const gamepassIcons = await roblox.getThumbnails(gamepasses.map(gamepass => roblox.generateBatch(gamepass.id, roblox.thumbnailTypes.GamePass)));
+                for (const gamepass of gamepasses) {
+                    const [gamepassId, gamepassName, gamepassPrice, gamepassDescription, gamepassIcon] = [
+                        gamepass.id,
+                        gamepass.displayName,
+                        gamepass.price,
+                        gamepass.description,
+                        gamepassIcons.find(icon => icon.targetId === gamepass.id)?.imageUrl || ""
+                    ];
+                    const gpIndex = data[id].gamePasses.findIndex(gp => gp.id === gamepassId);
+                    if (gpIndex === -1) {
+                        log(`✅ Gamepass ${gamepassName} (${gamepassId}) created for game ${config.games[id].name}!`);
+                        data[id].gamePasses.push({ id: gamepassId, name: gamepassName, price: gamepassPrice, description: gamepassDescription, icon: gamepassIcon });
+                        saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0x3498db)
-                            .setTitle(`${config.games[id].displayName} Gamepass updated!`)
+                            .setTitle(`${config.games[id].displayName} Gamepass created!`)
                             .setURL(`https://www.roblox.com/game-pass/${gamepassId}`)
-                            .addFields({ name: "Name", value: existingGamepass.name })
+                            .addFields({ name: "Name", value: gamepassName }, { name: "Price", value: gamepassPrice ? `${gamepassPrice} Robux` : "Unavailable" }, { name: "Description", value: gamepassDescription.length > 1024 ? `${gamepassDescription.slice(0, 1021)}...` : gamepassDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                        if (existingGamepass.icon !== gamepassIcon) embed.setThumbnail(gamepassIcon);
-                        if (existingGamepass.name !== gamepassName) embed.addFields({ name: "New Name", value: gamepassName });
-                        if (existingGamepass.price !== gamepassPrice) embed.addFields({ name: "New Price", value: gamepassPrice ? `${gamepassPrice} Robux` : "Unavailable" });
-                        if (existingGamepass.description !== gamepassDescription) embed.addFields({ name: "New Description", value: gamepassDescription.length > 1024 ? `${gamepassDescription.slice(0, 1021)}...` : gamepassDescription });
-                        data[id].gamePasses[gpIndex] = { id: gamepassId, name: gamepassName, price: gamepassPrice, description: gamepassDescription, icon: gamepassIcon };
-                        saveData();
+                        if (gamepassIcon) embed.setThumbnail(gamepassIcon);
                         const channel = await getChannel(config.games[id].discord.channelId);
                         await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                    } else {
+                        const existingGamepass = data[id].gamePasses[gpIndex];
+                        if (existingGamepass.name !== gamepassName || existingGamepass.price !== gamepassPrice || existingGamepass.description !== gamepassDescription || (existingGamepass.icon !== gamepassIcon && gamepassIcon.endsWith("noFilter"))) {
+                            log(`✅ Gamepass ${gamepassName} (${gamepassId}) updated for game ${config.games[id].displayName}!`);
+                            const embed = new EmbedBuilder()
+                                .setColor(0x3498db)
+                                .setTitle(`${config.games[id].displayName} Gamepass updated!`)
+                                .setURL(`https://www.roblox.com/game-pass/${gamepassId}`)
+                                .addFields({ name: "Name", value: existingGamepass.name })
+                                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                            if (existingGamepass.icon !== gamepassIcon && gamepassIcon.endsWith("noFilter")) embed.setThumbnail(gamepassIcon);
+                            if (existingGamepass.name !== gamepassName) embed.addFields({ name: "New Name", value: gamepassName });
+                            if (existingGamepass.price !== gamepassPrice) embed.addFields({ name: "New Price", value: gamepassPrice ? `${gamepassPrice} Robux` : "Unavailable" });
+                            if (existingGamepass.description !== gamepassDescription) embed.addFields({ name: "New Description", value: gamepassDescription.length > 1024 ? `${gamepassDescription.slice(0, 1021)}...` : gamepassDescription });
+                            data[id].gamePasses[gpIndex] = { id: gamepassId, name: gamepassName, price: gamepassPrice, description: gamepassDescription, icon: gamepassIcon.endsWith("noFilter") ? gamepassIcon : data[id].gamePasses[gpIndex].icon };
+                            saveData();
+                            const channel = await getChannel(config.games[id].discord.channelId);
+                            await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                        };
                     };
                 };
-            };
 
-            // products
-            const products = await roblox.getProducts(id);
-            const productIcons = await roblox.getThumbnails(products.map(product => roblox.generateBatch(product.DeveloperProductId, roblox.thumbnailTypes.DeveloperProduct)));
-            for (const product of products) {
-                const [productId, productName, productPrice, productDescription, productIcon] = [
-                    product.DeveloperProductId,
-                    product.displayName,
-                    product.PriceInRobux,
-                    product.displayDescription,
-                    productIcons.find(icon => icon.targetId === product.DeveloperProductId)?.imageUrl || ""
-                ];
-                const prodIndex = data[id].products.findIndex(p => p.id === productId);
-                if (prodIndex === -1) {
-                    log(`✅ Product ${productName} (${productId}) created for game ${config.games[id].name}!`);
-                    data[id].products.push({ id: productId, name: productName, price: productPrice, description: productDescription, icon: productIcon });
-                    saveData();
-                    const embed = new EmbedBuilder()
-                        .setColor(0xe74c3c)
-                        .setTitle(`${config.games[id].displayName} Product created!`)
-                        .setURL(`https://www.roblox.com/developer-products/${productId}`)
-                        .addFields({ name: "Name", value: productName }, { name: "Price", value: productPrice ? `${productPrice} Robux` : "Unavailable" }, { name: "Description", value: productDescription.length > 1024 ? `${productDescription.slice(0, 1021)}...` : productDescription })
-                        .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                    if (productIcon) embed.setThumbnail(productIcon);
-                    const channel = await getChannel(config.games[id].discord.channelId);
-                    await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-                } else {
-                    const existingProduct = data[id].products[prodIndex];
-                    if (existingProduct.name !== productName || existingProduct.price !== productPrice ||
-                        existingProduct.description !== productDescription || existingProduct.icon !== productIcon) {
-                        log(`✅ Product ${productName} (${productId}) updated for game ${config.games[id].name}!`);
+                // products
+                const products = await roblox.getProducts(id);
+                const productIcons = await roblox.getThumbnails(products.map(product => roblox.generateBatch(product.DeveloperProductId, roblox.thumbnailTypes.DeveloperProduct)));
+                for (const product of products) {
+                    const [productId, productName, productPrice, productDescription, productIcon] = [
+                        product.DeveloperProductId,
+                        product.displayName,
+                        product.PriceInRobux,
+                        product.displayDescription,
+                        productIcons.find(icon => icon.targetId === product.DeveloperProductId)?.imageUrl || ""
+                    ];
+                    const prodIndex = data[id].products.findIndex(p => p.id === productId);
+                    if (prodIndex === -1) {
+                        log(`✅ Product ${productName} (${productId}) created for game ${config.games[id].name}!`);
+                        data[id].products.push({ id: productId, name: productName, price: productPrice, description: productDescription, icon: productIcon });
+                        saveData();
                         const embed = new EmbedBuilder()
-                            .setColor(0x3498db)
-                            .setTitle(`${config.games[id].displayName} Product updated!`)
+                            .setColor(0xe74c3c)
+                            .setTitle(`${config.games[id].displayName} Product created!`)
                             .setURL(`https://www.roblox.com/developer-products/${productId}`)
-                            .addFields({ name: "Name", value: existingProduct.name })
+                            .addFields({ name: "Name", value: productName }, { name: "Price", value: productPrice ? `${productPrice} Robux` : "Unavailable" }, { name: "Description", value: productDescription.length > 1024 ? `${productDescription.slice(0, 1021)}...` : productDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                        if (existingProduct.icon !== productIcon) embed.setThumbnail(productIcon);
-                        if (existingProduct.name !== productName) embed.addFields({ name: "New Name", value: productName });
-                        if (existingProduct.price !== productPrice) embed.addFields({ name: "New Price", value: productPrice ? `${productPrice} Robux` : "Unavailable" });
-                        if (existingProduct.description !== productDescription) embed.addFields({ name: "New Description", value: productDescription.length > 1024 ? `${productDescription.slice(0, 1021)}...` : productDescription });
-                        data[id].products[prodIndex] = { id: productId, name: productName, price: productPrice, description: productDescription, icon: productIcon };
-                        saveData();
+                        if (productIcon) embed.setThumbnail(productIcon);
                         const channel = await getChannel(config.games[id].discord.channelId);
                         await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                    } else {
+                        const existingProduct = data[id].products[prodIndex];
+                        if (existingProduct.name !== productName || existingProduct.price !== productPrice || existingProduct.description !== productDescription || (existingProduct.icon !== productIcon && productIcon.endsWith("noFilter"))) {
+                            log(`✅ Product ${productName} (${productId}) updated for game ${config.games[id].name}!`);
+                            const embed = new EmbedBuilder()
+                                .setColor(0x3498db)
+                                .setTitle(`${config.games[id].displayName} Product updated!`)
+                                .setURL(`https://www.roblox.com/developer-products/${productId}`)
+                                .addFields({ name: "Name", value: existingProduct.name })
+                                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                            if (existingProduct.icon !== productIcon && productIcon.endsWith("noFilter")) embed.setThumbnail(productIcon);
+                            if (existingProduct.name !== productName) embed.addFields({ name: "New Name", value: productName });
+                            if (existingProduct.price !== productPrice) embed.addFields({ name: "New Price", value: productPrice ? `${productPrice} Robux` : "Unavailable" });
+                            if (existingProduct.description !== productDescription) embed.addFields({ name: "New Description", value: productDescription.length > 1024 ? `${productDescription.slice(0, 1021)}...` : productDescription });
+                            data[id].products[prodIndex] = { id: productId, name: productName, price: productPrice, description: productDescription, icon: productIcon.endsWith("noFilter") ? productIcon : data[id].products[prodIndex].icon };
+                            saveData();
+                            const channel = await getChannel(config.games[id].discord.channelId);
+                            await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                        };
                     };
                 };
-            };
 
-            // badges
-            const badges = await roblox.getBadges(id);
-            const badgeIcons = await roblox.getThumbnails(badges.map(badge => roblox.generateBatch(badge.id, roblox.thumbnailTypes.BadgeIcon)));
-            for (const badge of badges) {
-                const [badgeId, badgeName, badgeDescription, badgeIcon] = [
-                    badge.id,
-                    badge.displayName,
-                    badge.displayDescription,
-                    badgeIcons.find(icon => icon.targetId === badge.id)?.imageUrl || ""
-                ];
-                const badgeIndex = data[id].badges.findIndex(b => b.id === badgeId);
-                if (badgeIndex === -1) {
-                    data[id].badges.push({ id: badgeId, name: badgeName, description: badgeDescription, icon: badgeIcon });
-                    saveData();
-                    const embed = new EmbedBuilder()
-                        .setColor(0xf1c40f)
-                        .setTitle(`${config.games[id].displayName} Badge created!`)
-                        .setURL(`https://www.roblox.com/badges/${badgeId}`)
-                        .addFields({ name: "Name", value: badgeName }, { name: "Description", value: badgeDescription.length > 1024 ? `${badgeDescription.slice(0, 1021)}...` : badgeDescription })
-                        .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                    if (badgeIcon) embed.setThumbnail(badgeIcon);
-                    const channel = await getChannel(config.games[id].discord.channelId);
-                    await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-                } else {
-                    const existingBadge = data[id].badges[badgeIndex];
-                    if (existingBadge.name !== badgeName || existingBadge.description !== badgeDescription || existingBadge.icon !== badgeIcon) {
+                // badges
+                const badges = await roblox.getBadges(id);
+                const badgeIcons = await roblox.getThumbnails(badges.map(badge => roblox.generateBatch(badge.id, roblox.thumbnailTypes.BadgeIcon)));
+                for (const badge of badges) {
+                    const [badgeId, badgeName, badgeDescription, badgeIcon] = [
+                        badge.id,
+                        badge.displayName,
+                        badge.displayDescription,
+                        badgeIcons.find(icon => icon.targetId === badge.id)?.imageUrl || ""
+                    ];
+                    const badgeIndex = data[id].badges.findIndex(b => b.id === badgeId);
+                    if (badgeIndex === -1) {
+                        data[id].badges.push({ id: badgeId, name: badgeName, description: badgeDescription, icon: badgeIcon });
+                        saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0xf1c40f)
-                            .setTitle(`${config.games[id].displayName} Badge updated!`)
+                            .setTitle(`${config.games[id].displayName} Badge created!`)
                             .setURL(`https://www.roblox.com/badges/${badgeId}`)
-                            .addFields({ name: "Name", value: existingBadge.name })
+                            .addFields({ name: "Name", value: badgeName }, { name: "Description", value: badgeDescription.length > 1024 ? `${badgeDescription.slice(0, 1021)}...` : badgeDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                        if (existingBadge.icon !== badgeIcon) embed.setThumbnail(badgeIcon);
-                        if (existingBadge.name !== badgeName) embed.addFields({ name: "New Name", value: badgeName });
-                        if (existingBadge.description !== badgeDescription) embed.addFields({ name: "New Description", value: badgeDescription.length > 1024 ? `${badgeDescription.slice(0, 1021)}...` : badgeDescription });
-                        data[id].badges[badgeIndex] = { id: badgeId, name: badgeName, description: badgeDescription, icon: badgeIcon };
-                        saveData();
+                        if (badgeIcon && badgeIcon.endsWith("noFilter")) embed.setThumbnail(badgeIcon);
                         const channel = await getChannel(config.games[id].discord.channelId);
                         await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                    } else {
+                        const existingBadge = data[id].badges[badgeIndex];
+                        if (existingBadge.name !== badgeName || existingBadge.description !== badgeDescription || (existingBadge.icon !== badgeIcon && badgeIcon.endsWith("noFilter"))) {
+                            const embed = new EmbedBuilder()
+                                .setColor(0xf1c40f)
+                                .setTitle(`${config.games[id].displayName} Badge updated!`)
+                                .setURL(`https://www.roblox.com/badges/${badgeId}`)
+                                .addFields({ name: "Name", value: existingBadge.name })
+                                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                            if (existingBadge.icon !== badgeIcon && badgeIcon.endsWith("noFilter")) embed.setThumbnail(badgeIcon);
+                            if (existingBadge.name !== badgeName) embed.addFields({ name: "New Name", value: badgeName });
+                            if (existingBadge.description !== badgeDescription) embed.addFields({ name: "New Description", value: badgeDescription.length > 1024 ? `${badgeDescription.slice(0, 1021)}...` : badgeDescription });
+                            data[id].badges[badgeIndex] = { id: badgeId, name: badgeName, description: badgeDescription, icon: badgeIcon.endsWith("noFilter") ? badgeIcon : data[id].badges[badgeIndex].icon };
+                            saveData();
+                            const channel = await getChannel(config.games[id].discord.channelId);
+                            await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                        };
                     };
                 };
-            };
 
-            // places
-            const places = await roblox.getPlaces(id);
-            const placeIcons = await roblox.getThumbnails(places.map(place => roblox.generateBatch(place.id, roblox.thumbnailTypes.PlaceIcon)));
-            for (const place of places) {
-                const [placeId, placeName, placeDescription, placeIcon] = [
-                    place.id,
-                    place.name,
-                    place.description,
-                    placeIcons.find(icon => icon.targetId === place.id)?.imageUrl || ""
-                ];
-                if (placeId === rootPlaceId) continue;
-                const placeIndex = data[id].places.findIndex(p => p.id === placeId);
-                if (placeIndex === -1) {
-                    log(`✅ Place ${placeName} (${placeId}) created for game ${config.games[id].name}!`);
-                    data[id].places.push({ id: placeId, name: placeName, description: placeDescription, icon: placeIcon });
-                    saveData();
-                    const embed = new EmbedBuilder()
-                        .setColor(0x9b59b6)
-                        .setTitle(`${config.games[id].displayName} Place created!`)
-                        .setURL(`https://www.roblox.com/games/${placeId}`)
-                        .addFields({ name: "Name", value: placeName }, { name: "Description", value: placeDescription.length > 1024 ? `${placeDescription.slice(0, 1021)}...` : placeDescription })
-                        .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                    if (placeIcon) embed.setThumbnail(placeIcon);
-                    const channel = await getChannel(config.games[id].discord.channelId);
-                    await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
-                } else {
-                    const existingPlace = data[id].places[placeIndex];
-                    if (existingPlace.name !== placeName || existingPlace.description !== placeDescription ||
-                        existingPlace.icon !== placeIcon) {
-                        log(`✅ Place ${placeName} (${placeId}) updated for game ${config.games[id].name}!`);
+                // places
+                const places = await roblox.getPlaces(id);
+                const placeIcons = await roblox.getThumbnails(places.map(place => roblox.generateBatch(place.id, roblox.thumbnailTypes.PlaceIcon)));
+                for (const place of places) {
+                    const [placeId, placeName, placeDescription, placeIcon] = [
+                        place.id,
+                        place.name,
+                        place.description,
+                        placeIcons.find(icon => icon.targetId === place.id)?.imageUrl || ""
+                    ];
+                    if (placeId === rootPlaceId) continue;
+                    const placeIndex = data[id].places.findIndex(p => p.id === placeId);
+                    if (placeIndex === -1) {
+                        log(`✅ Place ${placeName} (${placeId}) created for game ${config.games[id].name}!`);
+                        data[id].places.push({ id: placeId, name: placeName, description: placeDescription, icon: placeIcon });
+                        saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0x9b59b6)
-                            .setTitle(`${config.games[id].displayName} Place updated!`)
+                            .setTitle(`${config.games[id].displayName} Place created!`)
                             .setURL(`https://www.roblox.com/games/${placeId}`)
-                            .addFields({ name: "Name", value: existingPlace.name })
+                            .addFields({ name: "Name", value: placeName }, { name: "Description", value: placeDescription.length > 1024 ? `${placeDescription.slice(0, 1021)}...` : placeDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
-                        if (existingPlace.icon !== placeIcon) embed.setThumbnail(placeIcon);
-                        if (existingPlace.name !== placeName) embed.addFields({ name: "New Name", value: placeName });
-                        if (existingPlace.description !== placeDescription) embed.addFields({ name: "New Description", value: placeDescription.length > 1024 ? `${placeDescription.slice(0, 1021)}...` : placeDescription });
-                        data[id].places[placeIndex] = { id: placeId, name: placeName, description: placeDescription, icon: placeIcon };
-                        saveData();
+                        if (placeIcon && placeIcon.endsWith("noFilter")) embed.setThumbnail(placeIcon);
                         const channel = await getChannel(config.games[id].discord.channelId);
                         await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                    } else {
+                        const existingPlace = data[id].places[placeIndex];
+                        if (existingPlace.name !== placeName || existingPlace.description !== placeDescription || (existingPlace.icon !== placeIcon && placeIcon.endsWith("noFilter"))) {
+                            log(`✅ Place ${placeName} (${placeId}) updated for game ${config.games[id].name}!`);
+                            const embed = new EmbedBuilder()
+                                .setColor(0x9b59b6)
+                                .setTitle(`${config.games[id].displayName} Place updated!`)
+                                .setURL(`https://www.roblox.com/games/${placeId}`)
+                                .addFields({ name: "Name", value: existingPlace.name })
+                                .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                            if (existingPlace.icon !== placeIcon && placeIcon.endsWith("noFilter")) embed.setThumbnail(placeIcon);
+                            if (existingPlace.name !== placeName) embed.addFields({ name: "New Name", value: placeName });
+                            if (existingPlace.description !== placeDescription) embed.addFields({ name: "New Description", value: placeDescription.length > 1024 ? `${placeDescription.slice(0, 1021)}...` : placeDescription });
+                            data[id].places[placeIndex] = { id: placeId, name: placeName, description: placeDescription, icon: placeIcon.endsWith("noFilter") ? placeIcon : data[id].places[placeIndex].icon };
+                            saveData();
+                            const channel = await getChannel(config.games[id].discord.channelId);
+                            await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [embed] });
+                        };
                     };
                 };
             };
         };
+        /*
+        if (userIds.length > 0) { // users
+            const presences = await roblox.getPresences(userIds);
+            for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
+                // wip
+            };
+        };*/
     } catch (error) {
         log('❌ Error checking games', error);
         return;
@@ -362,29 +378,47 @@ client.once('ready', async () => {
         });
     };
 });
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-    if (!interaction.commandName == "status") return;
-    await interaction.reply({
+const commands = {
+    status: async (interaction) => await interaction.reply({
         embeds: [new EmbedBuilder()
             .setTitle(config.discord.name)
             .setColor(0xe91e63)
-            .addFields({ name: "Bot information", value: `**Version**: [${version}](https://github.com/luluwaffless/rbxspy)\n**Next Check**: <t:${Math.floor(nextCheck / 1000)}:R>\n**Next Count Reset**: <t:${Math.floor((data.lastUpdate + 86400000) / 1000)}:R>\n**Chance of updating**: ${data.chance.text}` }, ...universeIds.map(id => ({
+            .addFields(
+                { name: "Version", value: `[${version}](https://github.com/luluwaffless/rbxspy)` },
+                { name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` },
+                { name: "Next Count Reset", value: `<t:${Math.floor((data.lastUpdate + 86400000) / 1000)}:R>` },
+                { name: "Chance of updating", value: data.chance.text }
+            )
+            .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
+    }),
+    games: async (interaction) => await interaction.reply({
+        embeds: [new EmbedBuilder()
+            .setTitle(`${config.discord.name} | games`)
+            .setColor(0xe91e63)
+            .addFields(...universeIds.map(id => ({
                 name: config.games[id].displayName,
-                value: `Last updated: <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\nUpdates today: ${data[id].updateCount.today}\nUpdates yesterday: ${data[id].updateCount.yesterday}`
+                value: `**Last updated:** <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\n**Updates today:** ${data[id].updateCount.today}\n**Updates yesterday:** ${data[id].updateCount.yesterday}`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
-    }).catch(error => {
+    }),
+    users: async (interaction) => await interaction.reply({
+        embeds: [new EmbedBuilder()
+            .setTitle(`${config.discord.name} | users`)
+            .setColor(0xe91e63)
+            .addFields(...userIds.map(id => ({
+                name: config.users[id].name,
+                value: `**Current Status:** ${presenceTypes[data[id].presence]}\n**Last location:** ${data[id].location && data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
+            })))
+            .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
+    }),
+};
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    if (!commands[interaction.commandName]) return;
+    await commands[interaction.commandName](interaction).catch(error => {
         log('❌ Error replying to interaction', error);
         interaction.followUp({ content: '❌ An error occurred while processing your request.', ephemeral: true });
     });
 });
-validateGameData();
+validateData();
 client.login(process.env.token);
-
-/* if the new change fumbles
-{ name: "Version", value: `[${version}](https://github.com/luluwaffless/rbxspy)` }, 
-{ name: "Next Check", value: `<t:${Math.floor(nextCheck / 1000)}:R>` }, 
-{ name: "Next Count Reset", value: `<t:${Math.floor((data.lastUpdate + 86400000) / 1000)}:R>` }, 
-{ name: "Chance of updating", value: data.chance.text }
-*/

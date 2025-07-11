@@ -461,7 +461,7 @@ const commands = {
         embeds: [new EmbedBuilder()
             .setTitle(`${config.discord.name} | games`)
             .setColor(0xe91e63)
-            .setDescription(universeIds.length > 0 ? "" : "No games are being tracked at the moment.")
+            .setDescription(universeIds.length > 0 ? null : "No games are being tracked at the moment.")
             .addFields(...universeIds.map(id => ({
                 name: config.games[id].displayName,
                 value: `**Last updated:** <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\n**Updates today:** ${data[id].updateCount.today}\n**Updates yesterday:** ${data[id].updateCount.yesterday}`
@@ -472,7 +472,7 @@ const commands = {
         embeds: [new EmbedBuilder()
             .setTitle(`${config.discord.name} | users`)
             .setColor(0xe91e63)
-            .setDescription(universeIds.length > 0 ? "" : "No users are being tracked at the moment.")
+            .setDescription(universeIds.length > 0 ? null : "No users are being tracked at the moment.")
             .addFields(...userIds.map(id => ({
                 name: config.users[id].name,
                 value: `**Current Status:** ${presences[data[id].presence].text}\n**Last location:** ${data[id].location && data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
@@ -485,7 +485,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!commands[interaction.commandName]) return;
     await commands[interaction.commandName](interaction).catch(error => {
         log('❌ Error replying to interaction', error);
-        interaction.followUp({ content: '❌ An error occurred while processing your request.', ephemeral: true });
+        interaction.reply({ content: '❌ An error occurred while processing your request.', ephemeral: true });
     });
 });
 validateData();

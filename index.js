@@ -1,4 +1,4 @@
-import { Client, EmbedBuilder, GatewayIntentBits } from 'discord.js';
+import { Client, EmbedBuilder, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import roblox from './roblox.js';
 const log = (data, error) => {
@@ -47,8 +47,27 @@ const setName = async (id, name) => {
     const channel = await getChannel(id);
     if (channel.name !== name) await channel.setName(name);
 };
+const username = id => config.users[id].displayName === config.users[id].name ? `@${config.users[id].name}` : `${config.users[id].displayName} (@${config.users[id].name})`;
+const duration = (start, end) => {
+    let durationMs = Math.abs(end - start);
+    const seconds = Math.floor((durationMs / 1000) % 60);
+    const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const parts = [];
+    if (hours) parts.push(`${hours} hour${hours === 1 ? '' : 's'}`);
+    if (minutes) parts.push(`${minutes} minute${minutes === 1 ? '' : 's'}`);
+    if (seconds || parts.length === 0) parts.push(`${seconds} second${seconds === 1 ? '' : 's'}`);
+    if (parts.length === 1) {
+        return parts[0];
+    } else if (parts.length === 2) {
+        return parts.join(' and ');
+    } else {
+        return parts.slice(0, -1).join(', ') + ' and ' + parts.slice(-1);
+    };
+};
 
 const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, text: "Low" }, { color: 0xf1c40f, text: "Average" }, { color: 0x2ecc71, text: "High" }, { color: 0x3498db, text: "Very high" }, { color: 0x9b59b6, text: "Extremely high" }];
+const presences = [{ text: "Offline", color: 0x202020 }, { text: "Online", color: 0x3498db }, { text: "Playing", color: 0x2ecc71 }, { text: "In Studio", color: 0xe67e22 }, { text: "Invisible", color: 0x808080 }];
 let nextCheck = 0;
 const check = async () => {
     try {
@@ -57,8 +76,39 @@ const check = async () => {
             const thumbnails = await roblox.getGameThumbnails(universeIds);
             const icons = await roblox.getThumbnails(universeIds.map(targetId => roblox.generateBatch(targetId, roblox.thumbnailTypes.GameIcon)));
             for (const { id, rootPlaceId, updated, description, name } of universes) {
-                // updates
+                // changes
                 const icon = icons.find(icon => icon.targetId === id)?.imageUrl || "";
+                const changesEmbed = new EmbedBuilder()
+                    .setColor(0x1abc9c)
+                    .setTitle(`${config.games[id].displayName} changed!`)
+                    .setURL(`https://www.roblox.com/games/${rootPlaceId}`)
+                    .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                let changesMade = false;
+                if (data[id].name !== name) {
+                    changesMade = true;
+                    data[id].name = name;
+                    const gameName = name ?? "";
+                    changesEmbed.addFields({ name: "New Name", value: gameName.length > 1024 ? `${gameName.slice(0, 1021)}...` : gameName });
+                };
+                if (data[id].description !== description) {
+                    changesMade = true;
+                    data[id].description = description;
+                    const gameDescription = description ?? "";
+                    changesEmbed.addFields({ name: "New Description", value: gameDescription.length > 1024 ? `${gameDescription.slice(0, 1021)}...` : gameDescription });
+                };
+                if (data[id].icon !== icon && icon.endsWith("noFilter")) {
+                    changesMade = true;
+                    data[id].icon = icon;
+                    changesEmbed.setImage(icon);
+                };
+                if (changesMade) {
+                    log(`✅ Game ${config.games[id].displayName} changed!`);
+                    saveData();
+                    const channel = await getChannel(config.games[id].discord.channelId);
+                    await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [changesEmbed] });
+                };
+
+                // updates
                 const updatedDate = new Date(updated);
                 if (data[id].rootPlaceId !== rootPlaceId) data[id].rootPlaceId = rootPlaceId;
                 if (data[id].lastUpdated < updatedDate.getTime() - 10000) {
@@ -70,20 +120,6 @@ const check = async () => {
                         .setDescription(`<t:${Math.floor(updatedDate.getTime() / 1000)}:D> at <t:${Math.floor(updatedDate.getTime() / 1000)}:T> (<t:${Math.floor(updatedDate.getTime() / 1000)}:R>)`)
                         .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
                     data[id].lastUpdated = updatedDate.getTime();
-                    if (data[id].name !== name) {
-                        data[id].name = name;
-                        const gameName = name ?? "";
-                        embed.addFields({ name: "New Name", value: gameName.length > 1024 ? `${gameName.slice(0, 1021)}...` : gameName });
-                    };
-                    if (data[id].description !== description) {
-                        data[id].description = description;
-                        const gameDescription = description ?? "";
-                        embed.addFields({ name: "New Description", value: gameDescription.length > 1024 ? `${gameDescription.slice(0, 1021)}...` : gameDescription });
-                    };
-                    if (data[id].icon !== icon && icon.endsWith("noFilter")) {
-                        data[id].icon = icon;
-                        embed.setImage(icon);
-                    };
                     data[id].updateCount.today++;
                     saveData();
                     const channel = await getChannel(config.games[id].discord.channelId);
@@ -294,15 +330,38 @@ const check = async () => {
                 };
             };
         };
-        /*
+
         if (userIds.length > 0) { // users
             const presences = await roblox.getPresences(userIds);
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
-                // wip
+                if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
+                    log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
+                    const currentPresence = presences[userPresenceType];
+                    const time = new Date().getTime();
+                    const embed = new EmbedBuilder()
+                        .setColor(currentPresence.color)
+                        .setTitle(`${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`)
+                        .setURL(`https://www.roblox.com/users/${userId}/profile`)
+                        .setDescription(`Was ${presences[data[userId].presence].text.toLowerCase()}${data[userId].presence === 2 && data[userId].location ? ` ${data[userId].location}` : ""} for ${duration(data[userId].lastActivity, time)}`)
+                        .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
+                    const row = userPresenceType === 2 && placeId && gameId ? new ActionRowBuilder().addComponents(new ButtonBuilder()
+                        .setURL(`https://deepblox.vercel.app/experiences/start?placeId=${placeId}&gameInstanceId=${gameId}`)
+                        .setStyle(ButtonStyle.Link)
+                        .setLabel("Join")
+                        .setEmoji("🎮")) : null;
+                    data[userId] = { presence: userPresenceType, location: lastLocation, placeId: placeId, rootPlaceId: rootPlaceId, gameId: gameId, universeId: universeId, lastActivity: time };
+                    saveData();
+                    const channel = await getChannel(config.users[userId].discord.channelId);
+                    await channel.send({
+                        content: `-# ||<@&${config.users[userId].discord.roleId}>||`,
+                        embeds: [embed],
+                        components: row ? [row] : []
+                    });
+                };
             };
-        };*/
+        };
     } catch (error) {
-        log('❌ Error checking games', error);
+        log('❌ Error checking', error);
         return;
     };
     const now = new Date();
@@ -362,8 +421,15 @@ client.once('ready', async () => {
     log(`✅ Logged into Discord as ${client.user.tag}!`);
     setName(config.discord.categoryId, "🟢 online");
     if (process.env.cookie) {
-        const login = await roblox.login(process.env.cookie);
-        log(`✅ Logged into Roblox as ${login.displayName} (@${login.name})!`);
+        try {
+            const login = await roblox.login(process.env.cookie);
+            log(`✅ Logged into Roblox as ${login.displayName} (@${login.name})!`);
+        } catch (error) {
+            log('❌ Error logging into Roblox with cookie', error);
+            return;
+        }
+    } else if (userIds.length > 0) {
+        log(`⚠️ Tracking users without a cookie, may not work.`);
     };
     await check();
     nextCheck = new Date().getTime() + config.checkInterval;
@@ -395,6 +461,7 @@ const commands = {
         embeds: [new EmbedBuilder()
             .setTitle(`${config.discord.name} | games`)
             .setColor(0xe91e63)
+            .setDescription(universeIds.length > 0 ? "" : "No games are being tracked at the moment.")
             .addFields(...universeIds.map(id => ({
                 name: config.games[id].displayName,
                 value: `**Last updated:** <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\n**Updates today:** ${data[id].updateCount.today}\n**Updates yesterday:** ${data[id].updateCount.yesterday}`
@@ -405,9 +472,10 @@ const commands = {
         embeds: [new EmbedBuilder()
             .setTitle(`${config.discord.name} | users`)
             .setColor(0xe91e63)
+            .setDescription(universeIds.length > 0 ? "" : "No users are being tracked at the moment.")
             .addFields(...userIds.map(id => ({
                 name: config.users[id].name,
-                value: `**Current Status:** ${presenceTypes[data[id].presence]}\n**Last location:** ${data[id].location && data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
+                value: `**Current Status:** ${presences[data[id].presence].text}\n**Last location:** ${data[id].location && data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
     }),

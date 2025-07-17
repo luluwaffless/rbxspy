@@ -80,7 +80,7 @@ const check = async () => {
                 const icon = icons.find(icon => icon.targetId === id)?.imageUrl || "";
                 const changesEmbed = new EmbedBuilder()
                     .setColor(0x1abc9c)
-                    .setTitle(`${config.games[id].displayName} changed!`)
+                    .setTitle(`${config.games[id].name} changed!`)
                     .setURL(`https://www.roblox.com/games/${rootPlaceId}`)
                     .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
                 let changesMade = false;
@@ -102,7 +102,7 @@ const check = async () => {
                     changesEmbed.setImage(icon);
                 };
                 if (changesMade) {
-                    log(`✅ Game ${config.games[id].displayName} changed!`);
+                    log(`✅ Game ${config.games[id].name} changed!`);
                     saveData();
                     const channel = await getChannel(config.games[id].discord.channelId);
                     await channel.send({ content: `-# ||<@&${config.games[id].discord.roleId}>||`, embeds: [changesEmbed] });
@@ -112,10 +112,10 @@ const check = async () => {
                 const updatedDate = new Date(updated);
                 if (data[id].rootPlaceId !== rootPlaceId) data[id].rootPlaceId = rootPlaceId;
                 if (data[id].lastUpdated < updatedDate.getTime() - 10000) {
-                    log(`✅ Game ${config.games[id].displayName} updated! From ${new Date(data[id].lastUpdated).toISOString()} to ${updatedDate.toISOString()}`);
+                    log(`✅ Game ${config.games[id].name} updated! From ${new Date(data[id].lastUpdated).toISOString()} to ${updatedDate.toISOString()}`);
                     const embed = new EmbedBuilder()
                         .setColor(0x2ecc71)
-                        .setTitle(`${config.games[id].displayName} updated!`)
+                        .setTitle(`${config.games[id].name} updated!`)
                         .setURL(`https://www.roblox.com/games/${rootPlaceId}`)
                         .setDescription(`<t:${Math.floor(updatedDate.getTime() / 1000)}:D> at <t:${Math.floor(updatedDate.getTime() / 1000)}:T> (<t:${Math.floor(updatedDate.getTime() / 1000)}:R>)`)
                         .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -131,12 +131,12 @@ const check = async () => {
                 if (thumbnailData.thumbnails) {
                     for (const { targetId, imageUrl } of thumbnailData.thumbnails) {
                         if (!data[id].thumbnails.includes(targetId)) {
-                            log(`✅ Thumbnail for game ${config.games[id].displayName} (${targetId}) created! ID: ${targetId}`);
+                            log(`✅ Thumbnail for game ${config.games[id].name} (${targetId}) created! ID: ${targetId}`);
                             data[id].thumbnails.push(targetId);
                             saveData();
                             const embed = new EmbedBuilder()
                                 .setColor(0xe67e22)
-                                .setTitle(`${config.games[id].displayName} Thumbnail created!`)
+                                .setTitle(`${config.games[id].name} Thumbnail created!`)
                                 .setURL(`https://www.roblox.com/games/${id}`)
                                 .setImage(imageUrl)
                                 .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -164,7 +164,7 @@ const check = async () => {
                         saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0x3498db)
-                            .setTitle(`${config.games[id].displayName} Gamepass created!`)
+                            .setTitle(`${config.games[id].name} Gamepass created!`)
                             .setURL(`https://www.roblox.com/game-pass/${gamepassId}`)
                             .addFields({ name: "Name", value: gamepassName }, { name: "Price", value: gamepassPrice ? `${gamepassPrice} Robux` : "Unavailable" }, { name: "Description", value: gamepassDescription.length > 1024 ? `${gamepassDescription.slice(0, 1021)}...` : gamepassDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -174,10 +174,10 @@ const check = async () => {
                     } else {
                         const existingGamepass = data[id].gamePasses[gpIndex];
                         if (existingGamepass.name !== gamepassName || existingGamepass.price !== gamepassPrice || existingGamepass.description !== gamepassDescription || (existingGamepass.icon !== gamepassIcon && gamepassIcon.endsWith("noFilter"))) {
-                            log(`✅ Gamepass ${gamepassName} (${gamepassId}) updated for game ${config.games[id].displayName}!`);
+                            log(`✅ Gamepass ${gamepassName} (${gamepassId}) updated for game ${config.games[id].name}!`);
                             const embed = new EmbedBuilder()
                                 .setColor(0x3498db)
-                                .setTitle(`${config.games[id].displayName} Gamepass updated!`)
+                                .setTitle(`${config.games[id].name} Gamepass updated!`)
                                 .setURL(`https://www.roblox.com/game-pass/${gamepassId}`)
                                 .addFields({ name: "Name", value: existingGamepass.name })
                                 .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -211,7 +211,7 @@ const check = async () => {
                         saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0xe74c3c)
-                            .setTitle(`${config.games[id].displayName} Product created!`)
+                            .setTitle(`${config.games[id].name} Product created!`)
                             .setURL(`https://www.roblox.com/developer-products/${productId}`)
                             .addFields({ name: "Name", value: productName }, { name: "Price", value: productPrice ? `${productPrice} Robux` : "Unavailable" }, { name: "Description", value: productDescription.length > 1024 ? `${productDescription.slice(0, 1021)}...` : productDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -224,7 +224,7 @@ const check = async () => {
                             log(`✅ Product ${productName} (${productId}) updated for game ${config.games[id].name}!`);
                             const embed = new EmbedBuilder()
                                 .setColor(0x3498db)
-                                .setTitle(`${config.games[id].displayName} Product updated!`)
+                                .setTitle(`${config.games[id].name} Product updated!`)
                                 .setURL(`https://www.roblox.com/developer-products/${productId}`)
                                 .addFields({ name: "Name", value: existingProduct.name })
                                 .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -256,7 +256,7 @@ const check = async () => {
                         saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0xf1c40f)
-                            .setTitle(`${config.games[id].displayName} Badge created!`)
+                            .setTitle(`${config.games[id].name} Badge created!`)
                             .setURL(`https://www.roblox.com/badges/${badgeId}`)
                             .addFields({ name: "Name", value: badgeName }, { name: "Description", value: badgeDescription.length > 1024 ? `${badgeDescription.slice(0, 1021)}...` : badgeDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -268,7 +268,7 @@ const check = async () => {
                         if (existingBadge.name !== badgeName || existingBadge.description !== badgeDescription || (existingBadge.icon !== badgeIcon && badgeIcon.endsWith("noFilter"))) {
                             const embed = new EmbedBuilder()
                                 .setColor(0xf1c40f)
-                                .setTitle(`${config.games[id].displayName} Badge updated!`)
+                                .setTitle(`${config.games[id].name} Badge updated!`)
                                 .setURL(`https://www.roblox.com/badges/${badgeId}`)
                                 .addFields({ name: "Name", value: existingBadge.name })
                                 .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -301,7 +301,7 @@ const check = async () => {
                         saveData();
                         const embed = new EmbedBuilder()
                             .setColor(0x9b59b6)
-                            .setTitle(`${config.games[id].displayName} Place created!`)
+                            .setTitle(`${config.games[id].name} Place created!`)
                             .setURL(`https://www.roblox.com/games/${placeId}`)
                             .addFields({ name: "Name", value: placeName }, { name: "Description", value: placeDescription.length > 1024 ? `${placeDescription.slice(0, 1021)}...` : placeDescription })
                             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -314,7 +314,7 @@ const check = async () => {
                             log(`✅ Place ${placeName} (${placeId}) updated for game ${config.games[id].name}!`);
                             const embed = new EmbedBuilder()
                                 .setColor(0x9b59b6)
-                                .setTitle(`${config.games[id].displayName} Place updated!`)
+                                .setTitle(`${config.games[id].name} Place updated!`)
                                 .setURL(`https://www.roblox.com/games/${placeId}`)
                                 .addFields({ name: "Name", value: existingPlace.name })
                                 .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
@@ -335,8 +335,8 @@ const check = async () => {
             const presences = await roblox.getPresences(userIds);
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
                 if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
-                    log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const currentPresence = presences[userPresenceType];
+                    log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const time = new Date().getTime();
                     const embed = new EmbedBuilder()
                         .setColor(currentPresence.color)
@@ -463,7 +463,7 @@ const commands = {
             .setColor(0xe91e63)
             .setDescription(universeIds.length > 0 ? null : "No games are being tracked at the moment.")
             .addFields(...universeIds.map(id => ({
-                name: config.games[id].displayName,
+                name: config.games[id].name,
                 value: `**Last updated:** <t:${Math.floor(data[id].lastUpdated / 1000)}:R>\n**Updates today:** ${data[id].updateCount.today}\n**Updates yesterday:** ${data[id].updateCount.yesterday}`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]

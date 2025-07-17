@@ -336,6 +336,7 @@ const check = async () => {
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
                 if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
                     const currentPresence = presenceTypes[userPresenceType];
+                    console.log(userPresenceType);
                     log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const time = new Date().getTime();
                     const embed = new EmbedBuilder()

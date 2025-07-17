@@ -382,6 +382,7 @@ const check = async () => {
     if (hour > 23 || hour < 11) estimate += 10;
     Object.keys(data).forEach((id) => {
         if (baseData.includes(id)) return;
+        if (data[id].updateCount === undefined) return;
         const { yesterday, today } = data[id].updateCount;
         const total = (yesterday / 2) + today;
         if (total >= 5) {

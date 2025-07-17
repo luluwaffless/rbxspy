@@ -67,7 +67,7 @@ const duration = (start, end) => {
 };
 
 const chances = [{ color: 0xe74c3c, text: "Impossible" }, { color: 0xe67e22, text: "Low" }, { color: 0xf1c40f, text: "Average" }, { color: 0x2ecc71, text: "High" }, { color: 0x3498db, text: "Very high" }, { color: 0x9b59b6, text: "Extremely high" }];
-const presences = [{ text: "Offline", color: 0x202020 }, { text: "Online", color: 0x3498db }, { text: "Playing", color: 0x2ecc71 }, { text: "In Studio", color: 0xe67e22 }, { text: "Invisible", color: 0x808080 }];
+const presenceTypes = [{ text: "Offline", color: 0x202020 }, { text: "Online", color: 0x3498db }, { text: "Playing", color: 0x2ecc71 }, { text: "In Studio", color: 0xe67e22 }, { text: "Invisible", color: 0x808080 }];
 let nextCheck = 0;
 const check = async () => {
     try {
@@ -335,7 +335,7 @@ const check = async () => {
             const presences = await roblox.getPresences(userIds);
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
                 if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
-                    const currentPresence = presences[userPresenceType];
+                    const currentPresence = presenceTypes[userPresenceType];
                     log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const time = new Date().getTime();
                     const embed = new EmbedBuilder()

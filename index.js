@@ -477,7 +477,7 @@ const commands = {
             .setDescription(userIds.length > 0 ? null : "No users are being tracked at the moment.")
             .addFields(...userIds.map(id => ({
                 name: config.users[id].name,
-                value: `**Current Status:** ${presences[data[id].presence].text}\n**Last location:** ${data[id].location && data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
+                value: `**Current Status:** ${presenceTypes[data[id].presence].text}\n**Last location:** ${data[id].location ? (data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : data[id].location) : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
     }),

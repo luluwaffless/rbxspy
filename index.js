@@ -336,14 +336,14 @@ const check = async () => {
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
                 if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
                     const currentPresence = presenceTypes[userPresenceType];
-                    console.log(currentPresence);
+                    const previousPresence = presenceTypes[data[userId].presence];
                     log(`✅ User ${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const time = new Date().getTime();
                     const embed = new EmbedBuilder()
                         .setColor(currentPresence.color)
                         .setTitle(`${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`)
                         .setURL(`https://www.roblox.com/users/${userId}/profile`)
-                        .setDescription(`Was ${presences[data[userId].presence].text.toLowerCase()}${data[userId].presence === 2 && data[userId].location ? ` ${data[userId].location}` : ""} for ${duration(data[userId].lastActivity, time)}`)
+                        .setDescription(`Was ${previousPresence.text.toLowerCase()}${data[userId].presence === 2 && data[userId].location ? ` ${data[userId].location}` : ""} for ${duration(data[userId].lastActivity, time)}`)
                         .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
                     const row = userPresenceType === 2 && placeId && gameId ? new ActionRowBuilder().addComponents(new ButtonBuilder()
                         .setURL(`https://deepblox.vercel.app/experiences/start?placeId=${placeId}&gameInstanceId=${gameId}`)

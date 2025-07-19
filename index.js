@@ -1,11 +1,24 @@
-import { Client, EmbedBuilder, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { Client, EmbedBuilder, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import roblox from './roblox.js';
-const log = (data, error) => {
+const log = async (data, error, dontSend) => {
     const timestamp = new Date().toISOString();
     if (error) {
+        const errorStr = `[${timestamp}] ${data}: ${error.message}, ${error.stack || 'no stack trace available'}\n`;
         console.error(`[${timestamp}] ${data}:`, error);
-        appendFileSync(`errors.log`, `[${timestamp}] ${data}: ${error.message}, ${error.stack || 'no stack trace available'}\n`);
+        appendFileSync(`errors.log`, errorStr);
+        if (!dontSend) {
+            try {
+                const msgStr = `@everyone\n\`\`\`\n${errorStr}\n\`\`\``;
+                const channel = await getChannel(config.discord.errorChannelId);
+                if (msgStr.length > 2000) {
+                    writeFileSync(`message.txt`, errorStr);
+                    await channel.send({ content: `@everyone`, files: [ new AttachmentBuilder("message.txt") ] });
+                } else await channel.send(msgStr);
+            } catch (err) {
+                log(`❌ Couldn't log error to Discord`, err, true);
+            };
+        };
     } else {
         console.log(`[${timestamp}] ${data}`);
         appendFileSync(`logs.log`, `[${timestamp}] ${data}\n`);
@@ -490,5 +503,7 @@ client.on('interactionCreate', async (interaction) => {
         interaction.reply({ content: '❌ An error occurred while processing your request.', ephemeral: true });
     });
 });
+process.on('unhandledRejection', (err, promise) => log(`❌ Unhandled rejection at ${promise}`, err));
+process.on('uncaughtException', (err) => log(`❌ Uncaught exception`, err));
 validateData();
 client.login(process.env.token);

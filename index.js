@@ -385,6 +385,7 @@ const check = async () => {
         data.lastUpdate = time;
         Object.keys(data).forEach((id) => {
             if (baseData.includes(id)) return;
+            if (data[id].updateCount === undefined) return;
             data[id].updateCount.yesterday = data[id].updateCount.today;
             data[id].updateCount.today = 0;
         });

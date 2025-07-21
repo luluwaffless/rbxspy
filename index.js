@@ -367,7 +367,7 @@ const check = async () => {
                     saveData();
                     const channel = await getChannel(config.users[userId].discord.channelId);
                     await channel.send({
-                        content: `-# ||<@&${config.users[userId].discord.roleId}>||`,
+                        content: `-# ||<@&${config.users[userId].discord.allRoleId}>${row !== null || userPresenceType === 3 ? ` <@&${config.users[userId].discord.relevantRoleId}>` : ""}||`,
                         embeds: [embed],
                         components: row ? [row] : []
                     });

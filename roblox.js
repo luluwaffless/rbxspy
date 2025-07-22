@@ -6,7 +6,8 @@ const thumbnailTypes = {
     GamePass: ["GamePass", "150x150"],
     DeveloperProduct: ["DeveloperProduct", "420x420"],
     BadgeIcon: ["BadgeIcon", "150x150"],
-    PlaceIcon: ["PlaceIcon", "512x512"]
+    PlaceIcon: ["PlaceIcon", "512x512"],
+    AvatarHeadShot: ["AvatarHeadShot", "420x420"]
 };
 const login = (cookie) => {
     axios.defaults.headers.common['Cookie'] = `.ROBLOSECURITY=${cookie}`;
@@ -57,4 +58,9 @@ const getPresences = (userIds) => axios.post('https://presence.roblox.com/v1/pre
     .catch(error => {
         throw error;
     });
-export default { thumbnailTypes, login, generateBatch, getGameThumbnails, getThumbnails, getGames, getGamePasses, getProducts, getBadges, getPlaces, getPresences };
+const getUsers = (userIds) => axios.get(`https://users.roblox.com/v1/users`, { userIds: userIds, excludeBannedUsers: false })
+    .then(response => response.data.data)
+    .catch(error => {
+        throw error;
+    });
+export default { thumbnailTypes, login, generateBatch, getGameThumbnails, getThumbnails, getGames, getGamePasses, getProducts, getBadges, getPlaces, getPresences, getUsers };

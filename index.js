@@ -33,7 +33,7 @@ const data = JSON.parse(readFileSync('data.json', 'utf-8'));
 const saveData = () => writeFileSync('data.json', JSON.stringify(data));
 const baseData = ["lastUpdate", "chance"];
 const createGameFormat = () => ({ lastUpdated: 0, rootPlaceId: 0, name: "", description: "", icon: "", updateCount: { today: 0, yesterday: 0 }, gamePasses: [], products: [], badges: [], places: [], thumbnails: [] });
-const createUserFormat = () => ({ name: "", displayName: "", hasVerifiedBadge: false, presence: 0, location: "", placeId: 0, rootPlaceId: 0, gameId: "", universeId: 0, lastActivity: 0 });
+const createUserFormat = () => ({ name: "", displayName: "", hasVerifiedBadge: false, presence: { presence: 0, location: "", placeId: 0, rootPlaceId: 0, gameId: "", universeId: 0, lastActivity: 0 } });
 const validateData = () => {
     universeIds.forEach(id => {
         if (data[id] && Object.keys(createGameFormat()).every(key => data[id][key] !== undefined)) return;
@@ -381,6 +381,7 @@ const check = async () => {
         if (userIds.length > 0) { // users
             const userIcons = await roblox.getThumbnails(userIds.map(targetId => roblox.generateBatch(targetId, roblox.thumbnailTypes.AvatarHeadShot)));
             const users = await roblox.getUsers(userIds);
+            // profile changes
             for (const { hasVerifiedBadge, id, name, displayName } of users) {
                 if (data[id].name !== name || data[id].displayName !== displayName || data[id].hasVerifiedBadge !== hasVerifiedBadge) {
                     log(`✅ User ${username(id)} [${id}] data updated!`);
@@ -410,11 +411,13 @@ const check = async () => {
                     });
                 };
             };
+
+            // presence
             const presences = await roblox.getPresences(userIds);
             for (const { userPresenceType, lastLocation, placeId, rootPlaceId, gameId, universeId, userId } of presences) {
-                if (userPresenceType != data[userId].presence || lastLocation != data[userId].location || placeId != data[userId].placeId || rootPlaceId != data[userId].rootPlaceId || gameId != data[userId].gameId || universeId != data[userId].universeId) {
+                if (userPresenceType != data[userId].presence.presence || lastLocation != data[userId].presence.location || placeId != data[userId].presence.placeId || rootPlaceId != data[userId].presence.rootPlaceId || gameId != data[userId].presence.gameId || universeId != data[userId].presence.universeId) {
                     const currentPresence = presenceTypes[userPresenceType];
-                    const previousPresence = presenceTypes[data[userId].presence];
+                    const previousPresence = presenceTypes[data[userId].presence.presence];
                     log(`✅ User ${username(userId)} [${userId}] is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
                     const userIcon = userIcons.find(i => i.targetId == userId)?.imageUrl || "";
                     const time = new Date().getTime();
@@ -423,14 +426,14 @@ const check = async () => {
                         .setAuthor({ name: username(userId), iconURL: userIcon, url: `https://www.roblox.com/users/${userId}/profile` })
                         .setTitle(`${username(userId)} is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`)
                         .setURL(userPresenceType === 2 && placeId ? `https://www.roblox.com/games/${placeId}` : null)
-                        .setDescription(`Was ${previousPresence.text.toLowerCase()}${data[userId].presence === 2 && data[userId].location ? ` ${data[userId].location}` : ""} for ${duration(data[userId].lastActivity, time)}`)
+                        .setDescription(`Was ${previousPresence.text.toLowerCase()}${data[userId].presence.presence === 2 && data[userId].presence.location ? ` ${data[userId].presence.location}` : ""} for ${duration(data[userId].presence.lastActivity, time)}`)
                         .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` });
                     const row = userPresenceType === 2 && placeId && gameId ? new ActionRowBuilder().addComponents(new ButtonBuilder()
                         .setURL(`https://deepblox.vercel.app/experiences/start?placeId=${placeId}&gameInstanceId=${gameId}`)
                         .setStyle(ButtonStyle.Link)
                         .setLabel("Join")
                         .setEmoji("🎮")) : null;
-                    data[userId] = { presence: userPresenceType, location: lastLocation, placeId: placeId, rootPlaceId: rootPlaceId, gameId: gameId, universeId: universeId, lastActivity: time };
+                    data[userId].presence = { presence: userPresenceType, location: lastLocation, placeId: placeId, rootPlaceId: rootPlaceId, gameId: gameId, universeId: universeId, lastActivity: time };
                     saveData();
                     const channel = await getChannel(config.users[userId].discord.channelId);
                     await channel.send({
@@ -451,8 +454,7 @@ const check = async () => {
     if (!data.lastUpdate || (time - data.lastUpdate) >= 86400000) {
         data.lastUpdate = time;
         Object.keys(data).forEach((id) => {
-            if (baseData.includes(id)) return;
-            if (data[id].updateCount === undefined) return;
+            if (baseData.includes(id) || data[id].updateCount === undefined) return;
             data[id].updateCount.yesterday = data[id].updateCount.today;
             data[id].updateCount.today = 0;
         });
@@ -462,8 +464,7 @@ const check = async () => {
     let estimate = 0;
     if (hour > 23 || hour < 11) estimate += 10;
     Object.keys(data).forEach((id) => {
-        if (baseData.includes(id)) return;
-        if (data[id].updateCount === undefined) return;
+        if (baseData.includes(id) || data[id].updateCount === undefined) return;
         const { yesterday, today } = data[id].updateCount;
         const total = (yesterday / 2) + today;
         if (total >= 5) {
@@ -558,7 +559,7 @@ const commands = {
             .setDescription(userIds.length > 0 ? null : "No users are being tracked at the moment.")
             .addFields(...userIds.map(id => ({
                 name: username(id),
-                value: `**Current Status:** ${presenceTypes[data[id].presence].text}\n**Last location:** ${data[id].location ? (data[id].placeId && data[id].gameId ? `[${data[id].location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].placeId}&gameInstanceId=${data[id].gameId})` : data[id].location) : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].lastActivity / 1000)}:R>`
+                value: `**Current Status:** ${presenceTypes[data[id].presence.presence].text}\n**Last location:** ${data[id].presence.location ? (data[id].presence.placeId && data[id].presence.gameId ? `[${data[id].presence.location}](https://deepblox.vercel.app/experiences/start?placeId=${data[id].presence.placeId}&gameInstanceId=${data[id].presence.gameId})` : data[id].presence.location) : "Unknown"}\n**Last activity:** <t:${Math.floor(data[id].presence.lastActivity / 1000)}:R>`
             })))
             .setFooter({ text: `${config.discord.name} | ${config.discord.invite}` })]
     }),

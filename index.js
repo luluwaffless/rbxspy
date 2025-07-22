@@ -416,7 +416,7 @@ const check = async () => {
                     const currentPresence = presenceTypes[userPresenceType];
                     const previousPresence = presenceTypes[data[userId].presence];
                     log(`✅ User ${username(userId)} [${userId}] is now ${currentPresence.text.toLowerCase()}${userPresenceType === 2 && lastLocation ? ` ${lastLocation}` : ""}!`);
-                    const userIcon = userIcons.find(i => i.targetId == id)?.imageUrl || "";
+                    const userIcon = userIcons.find(i => i.targetId == userId)?.imageUrl || "";
                     const time = new Date().getTime();
                     const embed = new EmbedBuilder()
                         .setColor(currentPresence.color)

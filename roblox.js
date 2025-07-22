@@ -58,7 +58,7 @@ const getPresences = (userIds) => axios.post('https://presence.roblox.com/v1/pre
     .catch(error => {
         throw error;
     });
-const getUsers = (userIds) => axios.get(`https://users.roblox.com/v1/users`, { userIds: userIds, excludeBannedUsers: false })
+const getUsers = (userIds) => axios.post(`https://users.roblox.com/v1/users`, { userIds: userIds, excludeBannedUsers: false })
     .then(response => response.data.data)
     .catch(error => {
         throw error;
